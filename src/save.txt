@@ -1,0 +1,332 @@
+//Mk Dir in SVN
+
+long committedRevision = -1;
+System.out.println("Making a new directory at '" + url + "'...");
+try{
+    /*
+     * creates a new version comtrolled directory in a repository and 
+     * displays what revision the repository was committed to
+     */
+    committedRevision = makeDirectory(url, "making a new directory at '" + url + "'").getNewRevision();
+}catch(SVNException svne){
+    error("error while making a new directory at '" + url + "'", svne);
+}
+System.out.println("Committed to revision " + committedRevision);
+System.out.println();
+        
+
+        
+//         
+
+File anImportDir = new File(importDir);
+File anImportFile = new File(anImportDir, SVNPathUtil.tail(importFile));
+/*
+ * creates a new local directory - './importDir' and a new file - 
+ * './importDir/importFile.txt' that will be imported into the repository
+ * into the '/MyRepos/importDir' directory 
+ */
+createLocalDir(anImportDir, new File[]{anImportFile}, new String[]{importFileText});
+
+System.out.println("Importing a new directory into '" + importToURL + "'...");
+try{
+    /*
+     * recursively imports an unversioned directory into a repository 
+     * and displays what revision the repository was committed to
+     */
+    boolean isRecursive = true;
+    committedRevision = importDirectory(anImportDir, importToURL, "importing a new directory '" + anImportDir.getAbsolutePath() + "'", isRecursive).getNewRevision();
+}catch(SVNException svne){
+    error("error while importing a new directory '" + anImportDir.getAbsolutePath() + "' into '" + importToURL + "'", svne);
+}
+System.out.println("Committed to revision " + committedRevision);
+System.out.println();
+
+
+
+
+// CHECKOUT!!!!!!!
+
+ /*
+ * creates a local directory where the working copy will be checked out into
+ */
+File wcDir = new File(myWorkingCopyPath);
+if (wcDir.exists()) {
+    error("the destination directory '"
+            + wcDir.getAbsolutePath() + "' already exists!", null);
+}
+wcDir.mkdirs();
+
+System.out.println("Checking out a working copy from '" + url + "'...");
+try {
+    /*
+     * recursively checks out a working copy from url into wcDir.
+     * SVNRevision.HEAD means the latest revision to be checked out. 
+     */
+    checkout(url, SVNRevision.HEAD, wcDir, true);
+} catch (SVNException svne) {
+    error("error while checking out a working copy for the location '"
+                    + url + "'", svne);
+}
+System.out.println();
+
+
+
+
+
+
+// INFO
+
+/*
+ * recursively displays info for wcDir at the current working revision 
+ * in the manner of 'svn info -R' command
+ */
+try {
+    showInfo(wcDir, SVNRevision.WORKING, true);
+} catch (SVNException svne) {
+    error("error while recursively getting info for the working copy at'"
+            + wcDir.getAbsolutePath() + "'", svne);
+}
+System.out.println();
+
+
+
+//Mk Local Dir
+
+File aNewDir = new File(wcDir, newDir);
+File aNewFile = new File(aNewDir, SVNPathUtil.tail(newFile));
+/*
+ * creates a new local directory - 'wcDir/newDir' and a new file - 
+ * '/MyWorkspace/newDir/newFile.txt' 
+ */
+createLocalDir(aNewDir, new File[]{aNewFile}, new String[]{fileText});
+
+
+
+
+//Adding files
+
+System.out.println("Recursively scheduling a new directory '" + aNewDir.getAbsolutePath() + "' for addition...");
+try {
+    /*
+     * recursively schedules aNewDir for addition
+     */
+    addEntry(aNewDir);
+} catch (SVNException svne) {
+    error("error while recursively adding the directory '"
+            + aNewDir.getAbsolutePath() + "'", svne);
+}
+System.out.println();
+
+
+
+// get Status
+
+boolean isRecursive = true;
+boolean isRemote = true;
+boolean isReportAll = false;
+boolean isIncludeIgnored = true;
+boolean isCollectParentExternals = false;
+System.out.println("Status for '" + wcDir.getAbsolutePath() + "':");
+try {
+    /*
+     * gets and shows status information for the WC directory.
+     * status will be recursive on wcDir, will also cover the repository, 
+     * won't cover unmodified entries, will disregard 'svn:ignore' property 
+     * ignores (if any), will ignore externals definitions.
+     */
+    showStatus(wcDir, isRecursive, isRemote, isReportAll,
+            isIncludeIgnored, isCollectParentExternals);
+} catch (SVNException svne) {
+    error("error while recursively performing status for '"
+            + wcDir.getAbsolutePath() + "'", svne);
+}
+System.out.println();
+
+
+
+
+// UPDATING!!!!
+
+System.out.println("Updating '" + wcDir.getAbsolutePath() + "'...");
+try {
+    /*
+     * recursively updates wcDir to the latest revision (SVNRevision.HEAD)
+     */
+    update(wcDir, SVNRevision.HEAD, true);
+} catch (SVNException svne) {
+    error("error while recursively updating the working copy at '"
+            + wcDir.getAbsolutePath() + "'", svne);
+}
+System.out.println("");
+
+
+
+// COMMITING!!!
+
+System.out.println("Committing changes for '" + wcDir.getAbsolutePath() + "'...");
+try {
+    /*
+     * commits changes in wcDir to the repository with not leaving items 
+     * locked (if any) after the commit succeeds; this will add aNewDir & 
+     * aNewFile to the repository. 
+     */
+    committedRevision = commit(wcDir, false,
+            "'/newDir' with '/newDir/newFile.txt' were added")
+            .getNewRevision();
+} catch (SVNException svne) {
+    error("error while committing changes to the working copy at '"
+            + wcDir.getAbsolutePath()
+            + "'", svne);
+}
+System.out.println("Committed to revision " + committedRevision);
+System.out.println();
+
+
+
+// Lock (with stealing) - status check after
+
+System.out
+        .println("Locking (with stealing if the entry is already locked) '"
+                + aNewFile.getAbsolutePath() + "'.");
+try {
+    /*
+     * locks aNewFile with stealing (if it has been already locked by someone
+     * else), providing a lock comment
+     */
+    lock(aNewFile, true, "locking '/newDir/newFile.txt'");
+} catch (SVNException svne) {
+    error("error while locking the working copy file '"
+            + aNewFile.getAbsolutePath() + "'", svne);
+}
+System.out.println();
+
+System.out.println("Status for '" + wcDir.getAbsolutePath() + "':");
+try {
+    /*
+     * displays status once again to see the file is really locked
+     */
+    showStatus(wcDir, isRecursive, isRemote, isReportAll,
+            isIncludeIgnored, isCollectParentExternals);
+} catch (SVNException svne) {
+    error("error while recursively performing status for '"
+            + wcDir.getAbsolutePath() + "'", svne);
+}
+System.out.println();
+
+
+
+
+// Branching
+
+System.out.println("Copying '" + url + "' to '" + copyURL + "'...");
+try {
+    /*
+     * makes a branch of url at copyURL - that is URL->URL copying
+     * with history
+     */
+	//File srcPath = new File(url.getPath());
+	SVNCopySource srcUrl = new SVNCopySource(SVNRevision.HEAD,SVNRevision.PREVIOUS,url); // TODO: sth with local variable [url] here!
+	SVNCopySource[] srcUrls = new SVNCopySource[2];
+	srcUrls[0] = srcUrl;
+	
+	SVNProperties revProperties = null;
+	
+    committedRevision = copy(srcUrls, copyURL, true, true, false,
+            "remotely copying '" + url + "' to '" + copyURL + "'", revProperties)
+            .getNewRevision();
+} catch (SVNException svne) {
+    error("error while copying '" + url + "' to '"
+            + copyURL + "'", svne);
+}
+/*
+* displays what revision the repository was committed to
+*/
+System.out.println("Committed to revision " + committedRevision);
+System.out.println();
+
+
+
+
+
+// Switching
+
+System.out.println("Switching '" + wcDir.getAbsolutePath() + "' to '"
+        + copyURL + "'...");
+try {
+    /*
+     * recursively switches wcDir to copyURL in the latest revision 
+     * (SVNRevision.HEAD)
+     */
+    switchToURL(wcDir, copyURL, SVNRevision.HEAD, true);
+} catch (SVNException svne) {
+    error("error while switching '"
+            + wcDir.getAbsolutePath() + "' to '" + copyURL + "'", svne);
+}
+System.out.println();
+
+/*
+ * recursively displays info for the working copy once again to see
+ * it was really switched to a new URL
+ */
+try {
+    showInfo(wcDir, SVNRevision.WORKING, true);
+} catch (SVNException svne) {
+    error("error while recursively getting info for the working copy at'"
+            + wcDir.getAbsolutePath() + "'", svne);
+}
+System.out.println();
+
+
+
+// Delete - and status
+
+System.out.println("Scheduling '" + aNewDir.getAbsolutePath() + "' for deletion ...");
+try {
+    /*
+     * schedules aNewDir for deletion (with forcing)
+     */
+    delete(aNewDir, true);
+} catch (SVNException svne) {
+    error("error while schediling '"
+            + wcDir.getAbsolutePath() + "' for deletion", svne);
+}
+System.out.println();
+
+System.out.println("Status for '" + wcDir.getAbsolutePath() + "':");
+try {
+    /*
+     * recursively displays status once more to see whether aNewDir
+     * was really scheduled for deletion  
+     */
+    showStatus(wcDir, isRecursive, isRemote, isReportAll,
+            isIncludeIgnored, isCollectParentExternals);
+} catch (SVNException svne) {
+    error("error while recursively performing status for '"
+            + wcDir.getAbsolutePath() + "'", svne);
+}
+System.out.println();
+
+
+
+
+
+// Commit!!!!
+
+System.out.println("Committing changes for '" + wcDir.getAbsolutePath() + "'...");
+try {
+    /*
+     * lastly commits changes in wcDir to the repository; all items that
+     * were locked by the user (if any) will be unlocked after the commit 
+     * succeeds; this commit will remove aNewDir from the repository. 
+     */
+    committedRevision = commit(
+            wcDir,
+            false,
+            "deleting '" + aNewDir.getAbsolutePath()
+                    + "' from the filesystem as well as from the repository").getNewRevision();
+} catch (SVNException svne) {
+    error("error while committing changes to the working copy '"
+            + wcDir.getAbsolutePath()
+            + "'", svne);
+}
+System.out.println("Committed to revision " + committedRevision);
